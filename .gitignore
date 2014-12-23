@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 
+#Ignore text files (they contain cookies)
+*.txt
+
 # C extensions
 *.so
 
