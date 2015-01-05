@@ -1,4 +1,4 @@
-#simple Resize and Mean Removal
+#Simple Resize and Mean Removal Grayscale
 def preprocessImgGray(dataDir, dim1=25, dim2=25):
     import cv2
     import numpy as np
@@ -10,7 +10,7 @@ def preprocessImgGray(dataDir, dim1=25, dim2=25):
     npImage = npImage.flatten()
     return npImage
 
-#define loading and pre-processing function in color
+#Simple Resize and Mean Removal in color
 def preprocessImg(dataDir, dim1=25, dim2=25):
     import cv2
     import numpy as np
