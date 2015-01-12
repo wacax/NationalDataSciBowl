@@ -13,9 +13,11 @@ def sigmoidGradient(z):
 def nnCostFunction(Thetas, input_layer_size, hidden1_layer_size, hidden2_layer_size, num_labels, X, y, NNlambda):
     import numpy as np
     Theta1 = np.reshape(Thetas[0: input_layer_size * hidden1_layer_size], (input_layer_size, hidden1_layer_size))
-    Theta2 = np.reshape(Thetas[input_layer_size * hidden1_layer_size : hidden1_layer_size * input_layer_size + (1 + hidden1_layer_size) * hidden2_layer_size],
+    Theta2 = np.reshape(Thetas[input_layer_size * hidden1_layer_size:hidden1_layer_size * input_layer_size +
+                                                                     (1 + hidden1_layer_size) * hidden2_layer_size],
                         (1 + hidden1_layer_size, hidden2_layer_size))
-    Theta3 = np.reshape(Thetas[len(Thetas) - (1 + hidden2_layer_size) * num_labels : len(Thetas)], (1 + hidden2_layer_size, num_labels))
+    Theta3 = np.reshape(Thetas[len(Thetas) - (1 + hidden2_layer_size) * num_labels:len(Thetas)],
+                        (1 + hidden2_layer_size, num_labels))
     m = X.shape[0]
 
     #Feedforward pass
@@ -39,9 +41,10 @@ def nnCostFunction(Thetas, input_layer_size, hidden1_layer_size, hidden2_layer_s
 def nnGradFunction(Thetas, input_layer_size, hidden1_layer_size, hidden2_layer_size, num_labels, X, y, NNlambda):
     import numpy as np
     Theta1 = np.reshape(Thetas[0: input_layer_size * hidden1_layer_size], (input_layer_size, hidden1_layer_size))
-    Theta2 = np.reshape(Thetas[input_layer_size * hidden1_layer_size : hidden1_layer_size * input_layer_size + (1 + hidden1_layer_size) * hidden2_layer_size],
+    Theta2 = np.reshape(Thetas[input_layer_size * hidden1_layer_size:hidden1_layer_size * input_layer_size +
+                                                                       (1 + hidden1_layer_size) * hidden2_layer_size],
                         (1 + hidden1_layer_size, hidden2_layer_size))
-    Theta3 = np.reshape(Thetas[len(Thetas) - (1 + hidden2_layer_size) * num_labels : len(Thetas)],
+    Theta3 = np.reshape(Thetas[len(Thetas) - (1 + hidden2_layer_size) * num_labels:len(Thetas)],
                         (1 + hidden2_layer_size, num_labels))
     m = X.shape[0]
 

@@ -30,6 +30,8 @@ It contains the cost functions and gradients of different types of neural nerwor
 implement a different neural network architecture, just add the cost function and respective gradient to the script.
 Written in Python
 
+UPDATE SUN 11TH MINIBATCH GRADIENT DESCENT IT'S STILL NOT WORKING THERE IS A SMALL BUT I YET HAVE TO FIGURE OUT; 
+BUT THE REST OF THE CODE IS COMPLETELY FUNCTIONAL.
 
 
 

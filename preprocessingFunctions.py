@@ -11,12 +11,16 @@ def preprocessImgGray(dataDir, dim1=25, dim2=25):
     return npImage
 
 #Simple Resize and Mean Removal in color
-def preprocessImg(dataDir, dim1=25, dim2=25):
+def preprocessImgRGB(dataDir, dim1=25, dim2=25):
     import cv2
     import numpy as np
     npImage = cv2.imread(dataDir)
-    vectorof255s = np.tile(255., (npImage.shape[0], npImage.shape [1], 3))
+    vectorof255s = np.tile(255., (npImage.shape[0], npImage.shape[1], 3))
     npImage = np.divide(npImage, vectorof255s)
     npImage = cv2.resize(npImage, (dim1, dim2))
     npImage = npImage.flatten()
     return npImage
+
+#Gabor Filters
+
+#Deep Autoencoders
