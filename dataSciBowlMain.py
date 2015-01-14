@@ -18,7 +18,7 @@ from pylab import cm
 from skimage import measure, morphology
 from warnings import filterwarnings
 #Functions from external modules
-from preprocessingFunctions import preprocessImgGray, preprocessImgRGB
+from preprocessingFunctions import preprocessImgGray, preprocessImgRGB, preprocessImthr
 from NNModules import nnCostFunction, nnGradFunction
 
 #Init
@@ -29,7 +29,9 @@ filterwarnings("ignore")
 
 #Locations
 currentDirectory = "/home/wacax/Wacax/Kaggle/National Data Science Bowl" #change this to your own directory
+#currentDirectory ="/Users/Gabi/dev/kaggle/NationalDataSciBowl"
 dataDirectory = "/home/wacax/Wacax/Kaggle/National Data Science Bowl/Data/" #change this to your own directory
+#dataDirectory = "/Users/Gabi/dev/kaggle/NationalDataSciBowl/Data/"
 if getcwd() != currentDirectory:
     chdir(currentDirectory)
 
@@ -117,7 +119,61 @@ data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[2
 #TODO
 
 #Image Preprocessing
-#TODO
+
+# find the largest nonzero region
+def getLargestRegion(props, labelmap, imagethres):
+    regionmaxprop = None
+    for regionprop in props:
+        # check to see if the region is at least 50% nonzero
+        if sum(imagethres[labelmap == regionprop.label])*1.0/regionprop.area < 0.50:
+            continue
+        if regionmaxprop is None:
+            regionmaxprop = regionprop
+        if regionmaxprop.filled_area < regionprop.filled_area:
+            regionmaxprop = regionprop
+    return regionmaxprop
+
+# threshold and dilate image - example
+imthr = preprocessImthr(dataDir=dataDirectory + "train/acantharia_protist/101574.jpg")
+imdilated = morphology.dilation(imthr, np.ones((4,4)))
+
+# calculate labels for connected regions
+# apply original threshhold to the labels
+labels = measure.label(imdilated) 
+labels = imthr * labels
+labels = labels.astype(int)
+
+# calculate common region properties for each region within the segmentation
+regions = measure.regionprops(labels)
+
+# EDA #4 plot threholded labeled image
+regionmax = getLargestRegion(props=regions, labelmap=labels, imagethres=imthr)
+plt.imshow(np.where(labels == regionmax.label, 1.0,0.0))
+plt.show()
+
+
+def getMinorMajorRatio(image):
+    image = image.copy()
+    # Create the thresholded image to eliminate some of the background
+    imagethr = np.where(image > np.mean(image),0.,1.0)
+
+    #Dilate the image
+    imdilated = morphology.dilation(imagethr, np.ones((4,4)))
+
+    # Create the label list
+    label_list = measure.label(imdilated)
+    label_list = imagethr*label_list
+    label_list = label_list.astype(int)
+    
+    region_list = measure.regionprops(label_list)
+    maxregion = getLargestRegion(region_list, label_list, imagethr)
+    
+    # guard against cases where the segmentation fails by providing zeros
+    ratio = 0.0
+    if ((not maxregion is None) and  (maxregion.major_axis_length != 0.0)):
+        ratio = 0.0 if maxregion is None else  maxregion.minor_axis_length*1.0 / maxregion.major_axis_length
+    return ratio
+
 
 #Gradiend Checking (Numerical Graient)
 #TODO
