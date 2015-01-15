@@ -231,7 +231,7 @@ for i in numberOfIterations:
     #Data Generation
     lastValue2Train = counter + int(miniBatchSize)
     if i == 30:
-        lastValue2Train = counter + 335
+        lastValue2Train = counter + abs(len(imageDirs) - (len(numberOfIterations) - 1) * miniBatchSize)
     Xdata = generateData(imageDirs[counter:lastValue2Train], preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
     yData = yMatrixShuffled[counter:lastValue2Train, :]
     counter = lastValue2Train
