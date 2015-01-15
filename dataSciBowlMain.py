@@ -201,7 +201,7 @@ data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[2
 #Run Neural Networks with optimal hyperparameters
 #mini-batch learning with either L-BFGS or Conjugate gradient
 #Init Algo
-miniBatchSize = 4000.0
+miniBatchSize = 2000.0
 dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
 #Shuffle Training Directories
 imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
@@ -213,8 +213,8 @@ yMatrixShuffled = yMatrix[dirsIdx, :]
 
 #Random Theta Generation
 input_layer_size = 25 * 25
-hidden1_layer_size = 30
-hidden2_layer_size = 30
+hidden1_layer_size = 10
+hidden2_layer_size = 10
 
 epsilonInit = 0.12
 nnThetas = np.concatenate((np.random.uniform(low=0.0, high=1.0, size=hidden1_layer_size * (1 + input_layer_size)).flatten()
