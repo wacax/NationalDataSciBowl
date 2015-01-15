@@ -30,8 +30,11 @@ It contains the cost functions and gradients of different types of neural nerwor
 implement a different neural network architecture, just add the cost function and respective gradient to the script.
 Written in Python
 
-UPDATE SUN 11TH MINIBATCH GRADIENT DESCENT IT'S STILL NOT WORKING THERE IS A SMALL BUG I YET HAVE TO FIGURE OUT; 
-BUT THE REST OF THE CODE IS COMPLETELY FUNCTIONAL.
+UPDATE TUE 14TH The code is fully functional now, any preprocessing function can be plugged in the optimization step #
+as long as it returns a vector (1-dimensional array) of the same size for each image. 
+Consider using cv2.resize for this matter.
+
+
 
 
 
