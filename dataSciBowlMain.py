@@ -19,7 +19,7 @@ from skimage import measure, morphology
 from warnings import filterwarnings
 #Functions from external modules
 from preprocessingFunctions import preprocessImgGray, preprocessImgRGB, preprocessImthr
-from NNModules import nnCostFunction, nnGradFunction
+from NNModules import nnCostFunction, nnGradFunction, predictionFromNNs
 
 #Init
 #Ignore warnings
@@ -61,10 +61,16 @@ for i in range(len(labels)):
 trainLabels = list(itertools.chain(*trainLabels))
 #Define targets as a matrix
 yIdx = np.array(trainLabels)
-y = np.eye(121)[yIdx]
+yMatrix = np.eye(121)[yIdx]
 
 #generate numpy array of data
 def generateData(imagesDir, preprocessingFun=False, RGB=False, dims=[25, 25]):
+    """
+    the generateData function creates a matrix of MxN dimensions, where M is the number of vectors
+    of length N corresponding to preprocessed training images. N corresponds to the length of
+    the flattened pixels of the image, it defaults to 25 * 25.
+
+    """
     import cv2
     nImages = len(imagesDir)
     #Init the empty np array
@@ -135,7 +141,7 @@ def getLargestRegion(props, labelmap, imagethres):
 
 # threshold and dilate image - example
 imthr = preprocessImthr(dataDir=dataDirectory + "train/acantharia_protist/101574.jpg")
-imdilated = morphology.dilation(imthr, np.ones((4,4)))
+imdilated = morphology.dilation(imthr, np.ones((4, 4)))
 
 # calculate labels for connected regions
 # apply original threshhold to the labels
@@ -146,16 +152,16 @@ labels = labels.astype(int)
 # calculate common region properties for each region within the segmentation
 regions = measure.regionprops(labels)
 
-# EDA #4 plot threholded labeled image
+# EDA #4 plot thresholded labeled image
 regionmax = getLargestRegion(props=regions, labelmap=labels, imagethres=imthr)
-plt.imshow(np.where(labels == regionmax.label, 1.0,0.0))
+plt.imshow(np.where(labels == regionmax.label, 1.0, 0.0))
 plt.show()
 
 
 def getMinorMajorRatio(image):
     image = image.copy()
     # Create the thresholded image to eliminate some of the background
-    imagethr = np.where(image > np.mean(image),0.,1.0)
+    imagethr = np.where(image > np.mean(image), 0., 1.0)
 
     #Dilate the image
     imdilated = morphology.dilation(imagethr, np.ones((4,4)))
@@ -182,10 +188,12 @@ def getMinorMajorRatio(image):
 #Full RAM data
 dirs = random.sample(dirImagesTrain, 200)
 data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+#TODO
 
 #Stochastic
 dirs = random.sample(dirImagesTrain, len(dirImagesTrain))
 data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+#TODO
 
 # Unsupervised learning of hidden layers (Pre-training)
 #TODO
@@ -199,18 +207,23 @@ dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
 imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
 numberOfIterations = range(int(ceil(len(imageDirs) / miniBatchSize)))
 num_labels = len(labels)
-NNlambda = 1.0 #arbitraty lambda is arbitrary
+NNlambda = 1.0 #arbitrary lambda is arbitrary
 #Shuffle Targets
-y = y[dirsIdx, :]
+yMatrixShuffled = yMatrix[dirsIdx, :]
 
-#Random Theta Generation #Remove this later
+#Random Theta Generation (Remove this later)
 input_layer_size = 25 * 25
 hidden1_layer_size = 10
 hidden2_layer_size = 10
 
-nnThetas = np.concatenate((np.random.uniform(low=0.0, high=1.0, size=input_layer_size).flatten(),
-                           np.random.uniform(low=0.0, high=1.0, size=hidden1_layer_size).flatten(),
-                           np.random.uniform(low=0.0, high=1.0, size=hidden2_layer_size).flatten()))
+epsilonInit = 0.12
+nnThetas = np.concatenate((np.random.uniform(low=0.0, high=1.0, size=hidden1_layer_size * (1 + input_layer_size)).flatten()
+                           * 2 * epsilonInit - epsilonInit,
+                           np.random.uniform(low=0.0, high=1.0, size=hidden2_layer_size * (1 + hidden1_layer_size)).flatten()
+                           * 2 * epsilonInit - epsilonInit,
+                           np.random.uniform(low=0.0, high=1.0, size=num_labels * (1 + hidden2_layer_size)).flatten()
+                           * 2 * epsilonInit - epsilonInit))
+nnThetas = nnThetas[0:7691]
 #Optimization
 theta = nnThetas
 counter = 0
@@ -219,16 +232,25 @@ for i in numberOfIterations:
     lastValue2Train = counter + int(miniBatchSize)
     if i == 30:
         lastValue2Train = counter + 335
-    data = generateData(imageDirs[counter:lastValue2Train], preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+    Xdata = generateData(imageDirs[counter:lastValue2Train], preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+    yData = yMatrixShuffled[counter:lastValue2Train, :]
     counter = lastValue2Train
 
-    arguments = (data.shape[0], hidden1_layer_size, hidden2_layer_size, num_labels, data,
-                 y[counter:lastValue2Train], NNlambda)
+    arguments = (input_layer_size, hidden1_layer_size, hidden2_layer_size, num_labels, Xdata,
+                 yData, NNlambda)
     theta = optimize.fmin_l_bfgs_b(nnCostFunction, x0=theta, fprime=nnGradFunction, args=arguments, maxiter=20, disp=True, iprint=0)
     #theta = optimize.fmin_cg(nnCostFunction, x0=nnThetas, fprime=nnGradFunction, args=arguments, maxiter=3, disp=True, retall=True)
     theta = np.array(theta[0])
 
+#Make Predictions
+#Create a Prediction Matrix
+testData = generateData(dirImagesTest, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+
+#Compute predictions using learned weights
+predictionMatrix = predictionFromNNs(theta, input_layer_size, hidden1_layer_size,
+                                     hidden2_layer_size, num_labels, testData)
+
 #Write .csv submission file
 submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
-submissionTemplate[submissionTemplate.columns[1:]] = 0
+submissionTemplate[submissionTemplate.columns[1:120, ]] = predictionMatrix
 submissionTemplate.to_csv()

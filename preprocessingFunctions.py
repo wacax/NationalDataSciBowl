@@ -20,6 +20,7 @@ def preprocessImgRGB(dataDir, dim1=25, dim2=25):
     npImage = cv2.resize(npImage, (dim1, dim2))
     npImage = npImage.flatten()
     return npImage
+
 # Threshold image by only taking values greater than the mean to reduce noise in the image
 def preprocessImthr(dataDir):
     import numpy as np
