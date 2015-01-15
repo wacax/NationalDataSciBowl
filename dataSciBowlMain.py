@@ -211,19 +211,19 @@ NNlambda = 1.0 #arbitrary lambda is arbitrary
 #Shuffle Targets
 yMatrixShuffled = yMatrix[dirsIdx, :]
 
-#Random Theta Generation (Remove this later)
+#Random Theta Generation
 input_layer_size = 25 * 25
-hidden1_layer_size = 10
-hidden2_layer_size = 10
+hidden1_layer_size = 30
+hidden2_layer_size = 30
 
 epsilonInit = 0.12
 nnThetas = np.concatenate((np.random.uniform(low=0.0, high=1.0, size=hidden1_layer_size * (1 + input_layer_size)).flatten()
                            * 2 * epsilonInit - epsilonInit,
-                           np.random.uniform(low=0.0, high=1.0, size=hidden2_layer_size * (1 + hidden1_layer_size)).flatten()
+                           np.random.uniform(low=0.0, high=1.0, size=hidden2_layer_size * hidden1_layer_size).flatten()
                            * 2 * epsilonInit - epsilonInit,
                            np.random.uniform(low=0.0, high=1.0, size=num_labels * (1 + hidden2_layer_size)).flatten()
                            * 2 * epsilonInit - epsilonInit))
-nnThetas = nnThetas[0:7691]
+
 #Optimization
 theta = nnThetas
 counter = 0
