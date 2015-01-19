@@ -281,8 +281,9 @@ for i in numberOfIterations:
     arguments = (input_layer_size, hidden1_layer_size, hidden2_layer_size, num_labels, Xdata,
                  yData, NNlambda)
     theta = optimize.fmin_l_bfgs_b(nnCostFunction, x0=theta, fprime=nnGradFunction, args=arguments, maxiter=20, disp=True, iprint=0)
-    #thetaCG = optimize.fmin_cg(nnCostFunction, x0=thetaCG, fprime=nnGradFunction, args=arguments, maxiter=3, disp=True, retall=True)
+    thetaCG = optimize.fmin_cg(nnCostFunction, x0=thetaCG, fprime=nnGradFunction, args=arguments, maxiter=3, disp=True, retall=True)
     theta = np.array(theta[0])
+    thetaCG = np.array(thetaCG[0])
 
 #Make Predictions
 #Create a Prediction Matrix
