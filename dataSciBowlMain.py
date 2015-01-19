@@ -242,7 +242,7 @@ Xdata = generateData(imageDirs, preprocessingFun=preprocessImgGray, RGB=False, d
 #Run Neural Networks with optimal hyperparameters
 #mini-batch learning with either L-BFGS or Conjugate gradient
 #Init Algo
-miniBatchSize = 2000.0
+miniBatchSize = 500.0
 dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
 #Shuffle Training Directories
 imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
@@ -281,7 +281,7 @@ for i in numberOfIterations:
     arguments = (input_layer_size, hidden1_layer_size, hidden2_layer_size, num_labels, Xdata,
                  yData, NNlambda)
     theta = optimize.fmin_l_bfgs_b(nnCostFunction, x0=theta, fprime=nnGradFunction, args=arguments, maxiter=20, disp=True, iprint=0)
-    thetaCG = optimize.fmin_cg(nnCostFunction, x0=thetaCG, fprime=nnGradFunction, args=arguments, maxiter=3, disp=True, retall=True)
+    #thetaCG = optimize.fmin_cg(nnCostFunction, x0=thetaCG, fprime=nnGradFunction, args=arguments, maxiter=3, disp=True, retall=True)
     theta = np.array(theta[0])
 
 #Make Predictions
@@ -308,7 +308,7 @@ Xdata = generateData(imageDirs, preprocessingFun=preprocessImgGray, RGB=False, d
 
 #Divide data for validation
 XTrain, XTest, yTrain, yTest = cross_validation.train_test_split(
-Xdata[0:10000, :], yMatrixShuffled[0:10000, :], test_size=0.4, random_state=0)
+    Xdata[0:10000, :], yMatrixShuffled[0:10000, :], test_size=0.4, random_state=0)
 
 # Validate a linear SVM classification model
 print("Fitting the classifier to the training set")
