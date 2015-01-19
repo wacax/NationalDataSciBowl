@@ -30,9 +30,7 @@ It contains the cost functions and gradients of different types of neural nerwor
 implement a different neural network architecture, just add the cost function and respective gradient to the script.
 Written in Python
 
-UPDATE TUE 14TH The code is fully functional now, any preprocessing function can be plugged in the optimization step #
-as long as it returns a vector (1-dimensional array) of the same size for each image. 
-Consider using cv2.resize for this matter.
+UPDATE SUN 18TH PCA, SVM reference model + SVM cross validation added on main script.
 
 
 

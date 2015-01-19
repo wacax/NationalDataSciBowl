@@ -7,12 +7,16 @@ import pandas as pd
 import numpy as np
 from scipy import optimize
 from math import ceil
+from time import time
 import itertools
 import random
 #import theano.tensor as T
 from joblib import Parallel, delayed
 import multiprocessing
 from matplotlib import pyplot as plt
+from sklearn.decomposition import RandomizedPCA
+from sklearn.grid_search import GridSearchCV
+from sklearn import svm, cross_validation
 from skimage.io import imread
 from pylab import cm
 from skimage import measure, morphology
@@ -68,7 +72,7 @@ def generateData(imagesDir, preprocessingFun=False, RGB=False, dims=[25, 25]):
     """
     the generateData function creates a matrix of MxN dimensions, where M is the number of vectors
     of length N corresponding to preprocessed training images. N corresponds to the length of
-    the flattened pixels of the image, it defaults to 25 * 25.
+    the flattened pixels of the image, it defaults to 25 * 25 pixels.
 
     """
     import cv2
@@ -180,6 +184,26 @@ def getMinorMajorRatio(image):
         ratio = 0.0 if maxregion is None else  maxregion.minor_axis_length*1.0 / maxregion.major_axis_length
     return ratio
 
+#PCA
+##Determining the minimal number of layers/Principal Components
+#Full RAM data
+dirs = random.sample(dirImagesTrain, 200)
+data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+
+pca = RandomizedPCA(n_components=250, whiten=True)
+pca.fit(data)
+varianceExplained = pca.explained_variance_ratio_
+
+print(pca.explained_variance_ratio_)
+
+varianceList = []
+variance = 0
+for ii in range(len(pca.explained_variance_ratio_)):
+    variance += pca.explained_variance_ratio_[ii]
+    if variance > 0.99:
+        varianceList.append(ii)
+
+minimalNumberOfComponents = varianceList[0]
 
 #Gradiend Checking (Numerical Graient)
 #TODO
@@ -194,6 +218,23 @@ data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[2
 dirs = random.sample(dirImagesTrain, len(dirImagesTrain))
 data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
 #TODO
+
+#Make a .csv file fit for h2o learning
+#Full RAM
+#Indices
+dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
+
+#Shuffle Training Directories and targets
+imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
+yMatrixShuffled = yMatrix[dirsIdx, :]
+
+Xdata = generateData(imageDirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+
+#TODO
+
+#DictRead
+#TODO
+
 
 # Unsupervised learning of hidden layers (Pre-training)
 #TODO
@@ -226,6 +267,7 @@ nnThetas = np.concatenate((np.random.uniform(low=0.0, high=1.0, size=hidden1_lay
 
 #Optimization
 theta = nnThetas
+thetaCG = nnThetas
 counter = 0
 for i in numberOfIterations:
     #Data Generation
@@ -239,7 +281,7 @@ for i in numberOfIterations:
     arguments = (input_layer_size, hidden1_layer_size, hidden2_layer_size, num_labels, Xdata,
                  yData, NNlambda)
     theta = optimize.fmin_l_bfgs_b(nnCostFunction, x0=theta, fprime=nnGradFunction, args=arguments, maxiter=20, disp=True, iprint=0)
-    #theta = optimize.fmin_cg(nnCostFunction, x0=nnThetas, fprime=nnGradFunction, args=arguments, maxiter=3, disp=True, retall=True)
+    thetaCG = optimize.fmin_cg(nnCostFunction, x0=thetaCG, fprime=nnGradFunction, args=arguments, maxiter=3, disp=True, retall=True)
     theta = np.array(theta[0])
 
 #Make Predictions
@@ -250,7 +292,53 @@ testData = generateData(dirImagesTest, preprocessingFun=preprocessImgGray, RGB=F
 predictionMatrix = predictionFromNNs(theta, input_layer_size, hidden1_layer_size,
                                      hidden2_layer_size, num_labels, testData)
 
-#Write .csv submission file
+predictionMatrixCG = predictionFromNNs(thetaCG, input_layer_size, hidden1_layer_size,
+                                     hidden2_layer_size, num_labels, testData)
+
+#Linear SVM one vs the rest classification model
+#Create an array of all the data available (or what fits in memory)
+#Indices
+dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
+
+#Shuffle Training Directories and targets
+imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
+yMatrixShuffled = yMatrix[dirsIdx, :]
+
+Xdata = generateData(imageDirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+
+#Divide data for validation
+XTrain, XTest, yTrain, yTest = cross_validation.train_test_split(
+Xdata[0:10000, :], yMatrixShuffled[0:10000, :], test_size=0.4, random_state=0)
+
+# Validate a linear SVM classification model
+print("Fitting the classifier to the training set")
+t0 = time()
+lin_clf = svm.LinearSVC()
+param_grid = {'C': [1.0, 3.0, 10.0, 30.0, 100]}
+clf = GridSearchCV(lin_clf(verbose=True), param_grid)
+clf = clf.fit(XTrain, yTrain)
+print("done in %0.3fs" % (time() - t0))
+print("Best estimator found by grid search:")
+print(clf.best_estimator_)
+
+#Train classifier on full data
+fullDataLinClf = svm.LinearSVC(C=clf.best_estimator_)
+fullDataLinClf.fit(Xdata, yMatrixShuffled)
+
+#Linear SVM Prediction
+predictionMatrixSVM = fullDataLinClf.predict_proba(testData)
+
+#Write .csv submission file NNs
+#L-BFGS
 submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
-submissionTemplate[submissionTemplate.columns[1:120, ]] = predictionMatrix
+submissionTemplate[submissionTemplate.columns[1:121, ]] = predictionMatrix
+submissionTemplate.to_csv()
+#NN with CG
+submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
+submissionTemplate[submissionTemplate.columns[1:121, ]] = predictionMatrixCG
+submissionTemplate.to_csv()
+
+#Write .csv submission file SVM
+submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
+submissionTemplate[submissionTemplate.columns[1:121, ]] = predictionMatrixSVM
 submissionTemplate.to_csv()
