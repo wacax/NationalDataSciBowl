@@ -272,8 +272,8 @@ counter = 0
 for i in numberOfIterations:
     #Data Generation
     lastValue2Train = counter + int(miniBatchSize)
-    if i == 30:
-        lastValue2Train = counter + abs(len(imageDirs) - (len(numberOfIterations) - 1) * miniBatchSize)
+    if i == np.max(numberOfIterations):
+        lastValue2Train = len(imageDirs)
     Xdata = generateData(imageDirs[counter:lastValue2Train], preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
     yData = yMatrixShuffled[counter:lastValue2Train, :]
     counter = lastValue2Train
@@ -332,14 +332,14 @@ predictionMatrixSVM = fullDataLinClf.predict_proba(testData)
 #Write .csv submission file NNs
 #L-BFGS
 submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
-submissionTemplate[submissionTemplate.columns[1:121, ]] = predictionMatrix
-submissionTemplate.to_csv()
+submissionTemplate.ix[:, 1:122] = predictionMatrix
+submissionTemplate.to_csv(getcwd() + "/NNbfgs.csv", float_format='%.5f', index=False)
 #NN with CG
 submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
-submissionTemplate[submissionTemplate.columns[1:121, ]] = predictionMatrixCG
-submissionTemplate.to_csv()
+submissionTemplate.ix[:, 1:122] = predictionMatrixCG
+submissionTemplate.to_csv(getcwd() + "/CG.csv", float_format='%.5f', index=False)
 
 #Write .csv submission file SVM
 submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
-submissionTemplate[submissionTemplate.columns[1:121, ]] = predictionMatrixSVM
-submissionTemplate.to_csv()
+submissionTemplate[1:121, :] = predictionMatrixSVM
+submissionTemplate.to_csv(getcwd())
