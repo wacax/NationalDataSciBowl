@@ -10,6 +10,7 @@ from math import ceil
 from time import time
 import itertools
 import random
+import cv2
 #import theano.tensor as T
 from joblib import Parallel, delayed
 import multiprocessing
@@ -24,6 +25,10 @@ from warnings import filterwarnings
 #Functions from external modules
 from preprocessingFunctions import preprocessImgGray, preprocessImgRGB, preprocessImthr
 from NNModules import nnCostFunction, nnGradFunction, predictionFromNNs
+from skimage.util import img_as_float
+from skimage.filter import gabor_kernel
+from preprocessingFunctions import compute_feats, match, power
+from scipy import ndimage as nd
 
 #Init
 #Ignore warnings
@@ -32,10 +37,10 @@ filterwarnings("ignore")
 #print T.config.device
 
 #Locations
-currentDirectory = "/home/wacax/Wacax/Kaggle/National Data Science Bowl" #change this to your own directory
-#currentDirectory ="/Users/Gabi/dev/kaggle/NationalDataSciBowl"
-dataDirectory = "/home/wacax/Wacax/Kaggle/National Data Science Bowl/Data/" #change this to your own directory
-#dataDirectory = "/Users/Gabi/dev/kaggle/NationalDataSciBowl/Data/"
+#currentDirectory = "/home/wacax/Wacax/Kaggle/National Data Science Bowl" #change this to your own directory
+currentDirectory ="/Users/Gabi/dev/kaggle/NationalDataSciBowl"
+#dataDirectory = "/home/wacax/Wacax/Kaggle/National Data Science Bowl/Data/" #change this to your own directory
+dataDirectory = "/Users/Gabi/dev/kaggle/NationalDataSciBowl/Data/"
 if getcwd() != currentDirectory:
     chdir(currentDirectory)
 
@@ -120,15 +125,107 @@ for i in range(0, randImgIdx.shape[0]):
     img = imread(dataDirectory + "train/" + labels[randFolderIdx] + "/" + folderImages[randImgIdx[i]]
                  , as_grey=True)
     ax = plt.subplot(2, 2, i + 1)
+    ax.set_xlabel(labels[randFolderIdx] + "/" + folderImages[randImgIdx[i]])
     ax.imshow(img, cmap=cm.gray)
 plt.show(ax)
 
 #EDA #2 Number of minimal principal components (or minimal amount of intermediate hidden units)
 dirs = random.sample(dirImagesTrain, 200)
 data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
-#TODO
 
-#Image Preprocessing
+
+## Image Preprocessing
+
+# Gabor filters
+# prepare filter bank kernels
+kernels = [np.real(gabor_kernel(frequency = frequency, theta=theta, sigma_x=sigma, sigma_y=sigma)) 
+            for theta in np.pi/4 * np.arange(4) 
+            for sigma in (1, 3) 
+            for frequency in (0.05, 0.25)]
+
+# example with images from jellies sub-folder
+# load 3 jelly images and resize
+#jellies_1 = io.imread(dataDirectory + "/train/jellies_tentacles/705.jpg")
+jellies_1 = imread(dataDirectory + "/train/jellies_tentacles/705.jpg")
+jellies_1 = img_as_float(cv2.resize(jellies_1, (25,25)))
+
+jellies_2 = imread(dataDirectory + "/train/jellies_tentacles/8889.jpg")
+jellies_2 = img_as_float(cv2.resize(jellies_2, (25,25)))
+jellies_3 = imread(dataDirectory + "/train/jellies_tentacles/9448.jpg")
+jellies_3 = img_as_float(cv2.resize(jellies_3, (25,25)))
+
+jellies_names = ['jellies_1','jellies_2','jellies_3']
+jellies_imgs = [jellies_1, jellies_2, jellies_3]
+
+
+## prepare reference features
+ref_feats = np.zeros((3, len(kernels), 2), dtype = np.double)
+ref_feats[0, :, :] = compute_feats(jellies_1, kernels)
+ref_feats[1, :, :] = compute_feats(jellies_2, kernels)
+ref_feats[2, :, :] = compute_feats(jellies_3, kernels)
+
+print 'Rotated images matched against references using Gabor filter banks:'
+
+print 'Original: jellies_1, rotated: 180deg, match result:'
+feats = compute_feats(nd.rotate(jellies_1, angle = 180, reshape=False), kernels)
+print jellies_names[match(feats, ref_feats)]
+
+print 'Original: jellies_1, rotated: 70deg, match result:'
+feats = compute_feats(nd.rotate(jellies_1, angle = 70, reshape=False), kernels)
+print jellies_names[match(feats, ref_feats)]
+
+print 'Original: jellies_3, rotated: 145deg, match result:'
+feats = compute_feats(nd.rotate(jellies_3, angle = 145, reshape=False), kernels)
+print jellies_names[match(feats, ref_feats)]
+
+## plot a selection of the filter bank kernels and their responses
+results, kernel_params = [], []
+for theta in (0, 1):
+    theta = theta / 4. * np.pi
+    for frequency in (0.1, 0.4):
+        kernel = gabor_kernel(frequency, theta=theta)
+        params = 'theta=%d,\nfrequency=%.2f' % (theta * 180 / np.pi, frequency )
+        kernel_params.append(params)
+        results.append((kernel, [power(img, kernel) for img in jellies_imgs]))
+
+
+fig, axes = plt.subplots(nrows = 6, ncols = 4, figsize = (9, 6))
+
+fig.suptitle('Image responses for Gabor filter kernels - Jellies', fontsize = 15)
+axes[0][0].axis('off')
+
+## plot original images
+for label, img, ax in zip(jellies_names, jellies_imgs, axes[0][1:]):
+#for label, img, ax in zip(image_names, images, axes[0][1:]):
+    ax.imshow(img, cmap=cm.gray)
+    ax.set_title(label)
+    ax.axis('off')
+
+    
+for label, (kernel, powers), ax_row in zip(kernel_params, results, axes[1:-1]):
+    ## plot Gabor kernels
+    ax = ax_row[0]
+    ax.imshow(np.real(kernel), interpolation='nearest', cmap=cm.gray)
+    ax.set_ylabel(label, fontsize=7)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    
+    ## plot Gabor responses with the contrast normalized for each filter
+    vmin = np.min(powers)
+    vmax = np.max(powers)
+    for patch, ax in zip(powers, ax_row[1:]):
+        ax.imshow(patch, vmin=vmin, vmax=vmax, cmap=cm.gray)
+        ax.axis('off')
+        
+## reconstructed images
+axes[-1, 0].axis('off')
+
+for ax, (kernel, powers) in zip(axes[-1][1:], results):
+    recontructed = (powers[0]+powers[1]+powers[2]) / len(powers)
+    ax.axis('off')
+    ax.imshow(recontructed, cmap=cm.gray)
+plt.show()
+
 
 # find the largest nonzero region
 def getLargestRegion(props, labelmap, imagethres):
