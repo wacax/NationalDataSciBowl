@@ -30,7 +30,10 @@ It contains the cost functions and gradients of different types of neural nerwor
 implement a different neural network architecture, just add the cost function and respective gradient to the script.
 Written in Python
 
-UPDATE SUN 18TH PCA, SVM reference model + SVM cross validation added on main script.
+UPDATE SAT 24TH I Moved the image processing functions from the tutorial to the preprocessingFunctions.py script. 
+The bug in the optimization part is still there but I could duplicate the error message. getMinorMajorRatio function
+ (the one from the tutorial) is now being used. That is, it gets the ratio and it appends it to the thresholded 
+ images, SVM is giving the best results, I will try to make one submission using getMinorMajorRatio + svm tomorrow.
 
 
 

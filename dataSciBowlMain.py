@@ -19,16 +19,15 @@ from sklearn.decomposition import RandomizedPCA
 from sklearn.grid_search import GridSearchCV
 from sklearn import svm, cross_validation
 from skimage.io import imread
+from skimage.util import img_as_float
+from skimage.filter import gabor_kernel
+from scipy import ndimage as nd
 from pylab import cm
 from skimage import measure, morphology
 from warnings import filterwarnings
 #Functions from external modules
-from preprocessingFunctions import preprocessImgGray, preprocessImgRGB, preprocessImthr
+from preprocessingFunctions import preprocessImgGray, preprocessImgRGB, preprocessImthr, compute_feats, match, power, getMinorMajorRatio, getLargestRegion
 from NNModules import nnCostFunction, nnGradFunction, predictionFromNNs
-from skimage.util import img_as_float
-from skimage.filter import gabor_kernel
-from preprocessingFunctions import compute_feats, match, power
-from scipy import ndimage as nd
 
 #Init
 #Ignore warnings
@@ -37,10 +36,10 @@ filterwarnings("ignore")
 #print T.config.device
 
 #Locations
-#currentDirectory = "/home/wacax/Wacax/Kaggle/National Data Science Bowl" #change this to your own directory
-currentDirectory ="/Users/Gabi/dev/kaggle/NationalDataSciBowl"
-#dataDirectory = "/home/wacax/Wacax/Kaggle/National Data Science Bowl/Data/" #change this to your own directory
-dataDirectory = "/Users/Gabi/dev/kaggle/NationalDataSciBowl/Data/"
+currentDirectory = "/home/wacax/Wacax/Kaggle/National Data Science Bowl" #change this to your own directory
+#currentDirectory ="/Users/Gabi/dev/kaggle/NationalDataSciBowl"
+dataDirectory = "/home/wacax/Wacax/Kaggle/National Data Science Bowl/Data/" #change this to your own directory
+#dataDirectory = "/Users/Gabi/dev/kaggle/NationalDataSciBowl/Data/"
 if getcwd() != currentDirectory:
     chdir(currentDirectory)
 
@@ -85,8 +84,8 @@ def generateData(imagesDir, preprocessingFun=False, RGB=False, dims=[25, 25]):
     #Init the empty np array
     if RGB==False:
         batchMatrix = np.empty(shape=(nImages, dims[0] * dims[1]))
-    else:
-        batchMatrix = np.empty(shape=(nImages, dims[0] * dims[1] * 3))
+    if preprocessingFun==getMinorMajorRatio:
+        batchMatrix = np.empty(shape=(nImages, (dims[0] * dims[1] + 1)))
     #collect preprocessed data into a numpy array
     if preprocessingFun != False:
         for i in range(len(imagesDir)):
@@ -97,7 +96,6 @@ def generateData(imagesDir, preprocessingFun=False, RGB=False, dims=[25, 25]):
             npImage = cv2.cvtColor(npImage, cv2.COLOR_BGR2GRAY)
             batchMatrix[i, ] = cv2.resize(npImage, (dims[0], dims[1])).flatten()
     return batchMatrix
-
 
 #EDA #1 Image Exploration
 #Fixed Example Image
@@ -129,18 +127,13 @@ for i in range(0, randImgIdx.shape[0]):
     ax.imshow(img, cmap=cm.gray)
 plt.show(ax)
 
-#EDA #2 Number of minimal principal components (or minimal amount of intermediate hidden units)
-dirs = random.sample(dirImagesTrain, 200)
-data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
-
-
 ## Image Preprocessing
 
 # Gabor filters
 # prepare filter bank kernels
-kernels = [np.real(gabor_kernel(frequency = frequency, theta=theta, sigma_x=sigma, sigma_y=sigma)) 
-            for theta in np.pi/4 * np.arange(4) 
-            for sigma in (1, 3) 
+kernels = [np.real(gabor_kernel(frequency = frequency, theta=theta, sigma_x=sigma, sigma_y=sigma))
+            for theta in np.pi/4 * np.arange(4)
+            for sigma in (1, 3)
             for frequency in (0.05, 0.25)]
 
 # example with images from jellies sub-folder
@@ -156,7 +149,6 @@ jellies_3 = img_as_float(cv2.resize(jellies_3, (25,25)))
 
 jellies_names = ['jellies_1','jellies_2','jellies_3']
 jellies_imgs = [jellies_1, jellies_2, jellies_3]
-
 
 ## prepare reference features
 ref_feats = np.zeros((3, len(kernels), 2), dtype = np.double)
@@ -201,7 +193,7 @@ for label, img, ax in zip(jellies_names, jellies_imgs, axes[0][1:]):
     ax.set_title(label)
     ax.axis('off')
 
-    
+
 for label, (kernel, powers), ax_row in zip(kernel_params, results, axes[1:-1]):
     ## plot Gabor kernels
     ax = ax_row[0]
@@ -209,14 +201,14 @@ for label, (kernel, powers), ax_row in zip(kernel_params, results, axes[1:-1]):
     ax.set_ylabel(label, fontsize=7)
     ax.set_xticks([])
     ax.set_yticks([])
-    
+
     ## plot Gabor responses with the contrast normalized for each filter
     vmin = np.min(powers)
     vmax = np.max(powers)
     for patch, ax in zip(powers, ax_row[1:]):
         ax.imshow(patch, vmin=vmin, vmax=vmax, cmap=cm.gray)
         ax.axis('off')
-        
+
 ## reconstructed images
 axes[-1, 0].axis('off')
 
@@ -226,27 +218,13 @@ for ax, (kernel, powers) in zip(axes[-1][1:], results):
     ax.imshow(recontructed, cmap=cm.gray)
 plt.show()
 
-
-# find the largest nonzero region
-def getLargestRegion(props, labelmap, imagethres):
-    regionmaxprop = None
-    for regionprop in props:
-        # check to see if the region is at least 50% nonzero
-        if sum(imagethres[labelmap == regionprop.label])*1.0/regionprop.area < 0.50:
-            continue
-        if regionmaxprop is None:
-            regionmaxprop = regionprop
-        if regionmaxprop.filled_area < regionprop.filled_area:
-            regionmaxprop = regionprop
-    return regionmaxprop
-
 # threshold and dilate image - example
 imthr = preprocessImthr(dataDir=dataDirectory + "train/acantharia_protist/101574.jpg")
 imdilated = morphology.dilation(imthr, np.ones((4, 4)))
 
 # calculate labels for connected regions
 # apply original threshhold to the labels
-labels = measure.label(imdilated) 
+labels = measure.label(imdilated)
 labels = imthr * labels
 labels = labels.astype(int)
 
@@ -258,34 +236,17 @@ regionmax = getLargestRegion(props=regions, labelmap=labels, imagethres=imthr)
 plt.imshow(np.where(labels == regionmax.label, 1.0, 0.0))
 plt.show()
 
-
-def getMinorMajorRatio(image):
-    image = image.copy()
-    # Create the thresholded image to eliminate some of the background
-    imagethr = np.where(image > np.mean(image), 0., 1.0)
-
-    #Dilate the image
-    imdilated = morphology.dilation(imagethr, np.ones((4,4)))
-
-    # Create the label list
-    label_list = measure.label(imdilated)
-    label_list = imagethr*label_list
-    label_list = label_list.astype(int)
-    
-    region_list = measure.regionprops(label_list)
-    maxregion = getLargestRegion(region_list, label_list, imagethr)
-    
-    # guard against cases where the segmentation fails by providing zeros
-    ratio = 0.0
-    if ((not maxregion is None) and  (maxregion.major_axis_length != 0.0)):
-        ratio = 0.0 if maxregion is None else  maxregion.minor_axis_length*1.0 / maxregion.major_axis_length
-    return ratio
+#The same but rescaled and using a function
+fxImgNew2 = getMinorMajorRatio(dataDir=dataDirectory + "train/acantharia_protist/101574.jpg",
+                               dim1=100, dim2=100, onlyImage=True)
+plt.imshow(fxImgNew2.reshape(100, 100))
+plt.show()
 
 #PCA
 ##Determining the minimal number of layers/Principal Components
 #Full RAM data
 dirs = random.sample(dirImagesTrain, 200)
-data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+data = generateData(dirs, preprocessingFun=getMinorMajorRatio, RGB=False, dims=[25, 25])
 
 pca = RandomizedPCA(n_components=250, whiten=True)
 pca.fit(data)
@@ -339,7 +300,7 @@ Xdata = generateData(imageDirs, preprocessingFun=preprocessImgGray, RGB=False, d
 #Run Neural Networks with optimal hyperparameters
 #mini-batch learning with either L-BFGS or Conjugate gradient
 #Init Algo
-miniBatchSize = 500.0
+miniBatchSize = 2000.0
 dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
 #Shuffle Training Directories
 imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
@@ -350,9 +311,9 @@ NNlambda = 1.0 #arbitrary lambda is arbitrary
 yMatrixShuffled = yMatrix[dirsIdx, :]
 
 #Random Theta Generation
-input_layer_size = 25 * 25
-hidden1_layer_size = 10
-hidden2_layer_size = 10
+input_layer_size = 50 * 50 + 1
+hidden1_layer_size = 50
+hidden2_layer_size = 50
 
 epsilonInit = 0.12
 nnThetas = np.concatenate((np.random.uniform(low=0.0, high=1.0, size=hidden1_layer_size * (1 + input_layer_size)).flatten()
@@ -371,7 +332,7 @@ for i in numberOfIterations:
     lastValue2Train = counter + int(miniBatchSize)
     if i == np.max(numberOfIterations):
         lastValue2Train = len(imageDirs)
-    Xdata = generateData(imageDirs[counter:lastValue2Train], preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+    Xdata = generateData(imageDirs[counter:lastValue2Train], preprocessingFun=getMinorMajorRatio, RGB=False, dims=[50, 50])
     yData = yMatrixShuffled[counter:lastValue2Train, :]
     counter = lastValue2Train
 
@@ -384,7 +345,7 @@ for i in numberOfIterations:
 
 #Make Predictions
 #Create a Prediction Matrix
-testData = generateData(dirImagesTest, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+testData = generateData(dirImagesTest, preprocessingFun=getMinorMajorRatio, RGB=False, dims=[50, 50])
 
 #Compute predictions using learned weights
 predictionMatrix = predictionFromNNs(theta, input_layer_size, hidden1_layer_size,
@@ -402,7 +363,7 @@ dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
 imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
 yMatrixShuffled = yMatrix[dirsIdx, :]
 
-Xdata = generateData(imageDirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
+Xdata = generateData(imageDirs, preprocessingFun=getMinorMajorRatio, RGB=False, dims=[25, 25])
 
 #Divide data for validation
 XTrain, XTest, yTrain, yTest = cross_validation.train_test_split(
