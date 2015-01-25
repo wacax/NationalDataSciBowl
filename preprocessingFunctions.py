@@ -76,7 +76,7 @@ def getMinorMajorRatio(dataDir, dim1=50, dim2=50, onlyImage=False):
             ratio = 0.0 if maxregion is None else maxregion.minor_axis_length*1.0 / maxregion.major_axis_length
         #Function returns rescaled image and ratio
         imagethr = cv2.resize(imagethr, (dim1, dim2))
-        imagethr = image.flatten()
+        imagethr = imagethr.flatten()
         return np.hstack((imagethr, ratio))
 
 #Gabor Filters
