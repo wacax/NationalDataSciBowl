@@ -300,7 +300,7 @@ Xdata = generateData(imageDirs, preprocessingFun=preprocessImgGray, RGB=False, d
 #Run Neural Networks with optimal hyperparameters
 #mini-batch learning with either L-BFGS or Conjugate gradient
 #Init Algo
-miniBatchSize = 2000.0
+miniBatchSize = 800.0
 dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
 #Shuffle Training Directories
 imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
