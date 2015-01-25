@@ -312,8 +312,8 @@ yMatrixShuffled = yMatrix[dirsIdx, :]
 
 #Random Theta Generation
 input_layer_size = 50 * 50 + 1
-hidden1_layer_size = 50
-hidden2_layer_size = 50
+hidden1_layer_size = 20
+hidden2_layer_size = 20
 
 epsilonInit = 0.12
 nnThetas = np.concatenate((np.random.uniform(low=0.0, high=1.0, size=hidden1_layer_size * (1 + input_layer_size)).flatten()
