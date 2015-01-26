@@ -35,7 +35,8 @@ The bug in the optimization part is still there but I could duplicate the error 
  (the one from the tutorial) is now being used. That is, it gets the ratio and it appends it to the thresholded 
  images, SVM is giving the best results, I will try to make one submission using getMinorMajorRatio + svm tomorrow.
 
-
+UPDATE SUN 25TH the in memory data generation .csv function is ready to be used. The output in .csv can be used to 
+ make h2o models in R, either as a RPy script or as a .R script
 
 
 

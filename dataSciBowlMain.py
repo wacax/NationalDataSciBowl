@@ -95,6 +95,7 @@ def generateData(imagesDir, preprocessingFun=False, RGB=False, dims=[25, 25]):
             npImage = cv2.imread(imagesDir[i])
             npImage = cv2.cvtColor(npImage, cv2.COLOR_BGR2GRAY)
             batchMatrix[i, ] = cv2.resize(npImage, (dims[0], dims[1])).flatten()
+
     return batchMatrix
 
 #EDA #1 Image Exploration
@@ -281,14 +282,18 @@ data = generateData(dirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[2
 #Full RAM
 #Indices
 dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
-
 #Shuffle Training Directories and targets
 imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
-yMatrixShuffled = yMatrix[dirsIdx, :]
+#Shuffle Labels
+h2oLabels = list(np.array(trainLabels)[dirsIdx])
 
-Xdata = generateData(imageDirs, preprocessingFun=preprocessImgGray, RGB=False, dims=[25, 25])
-
-#TODO
+#Train
+Xdata = generateData(imageDirs, preprocessingFun=getMinorMajorRatio, RGB=False, dims=[30, 30])
+pd.DataFrame(data=np.column_stack((Xdata, np.array(h2oLabels))))\
+    .to_csv(getcwd() + "/h2oTrain.csv", float_format='%.5f', index=False)
+#Test
+testData = generateData(dirImagesTest, preprocessingFun=getMinorMajorRatio, RGB=False, dims=[30, 30])
+pd.DataFrame(data=testData).to_csv(getcwd() + "/h2oTest.csv", float_format='%.5f', index=False)
 
 #DictRead
 #TODO
