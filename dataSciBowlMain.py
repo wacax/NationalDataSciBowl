@@ -11,7 +11,7 @@ from time import time
 import itertools
 import random
 import cv2
-#import theano.tensor as T
+import theanets
 from joblib import Parallel, delayed
 import multiprocessing
 from matplotlib import pyplot as plt
@@ -47,6 +47,7 @@ nCores = multiprocessing.cpu_count()
 
 #get the classnames from the directory structure
 labels = pd.Series(listdir(dataDirectory + "train"))
+labelsDict = dict(labels)
 imagesTest = pd.Series(listdir(dataDirectory + "test"))
 
 dirImagesTrain = []
@@ -84,7 +85,7 @@ def generateData(imagesDir, preprocessingFun=False, RGB=False, dims=[25, 25]):
     #Init the empty np array
     if RGB==False:
         batchMatrix = np.empty(shape=(nImages, dims[0] * dims[1]))
-    if preprocessingFun==getMinorMajorRatio:
+    if preprocessingFun == getMinorMajorRatio:
         batchMatrix = np.empty(shape=(nImages, (dims[0] * dims[1] + 1)))
     #collect preprocessed data into a numpy array
     if preprocessingFun != False:
@@ -132,7 +133,7 @@ plt.show(ax)
 
 # Gabor filters
 # prepare filter bank kernels
-kernels = [np.real(gabor_kernel(frequency = frequency, theta=theta, sigma_x=sigma, sigma_y=sigma))
+kernels = [np.real(gabor_kernel(frequency=frequency, theta=theta, sigma_x=sigma, sigma_y=sigma))
             for theta in np.pi/4 * np.arange(4)
             for sigma in (1, 3)
             for frequency in (0.05, 0.25)]
@@ -193,7 +194,6 @@ for label, img, ax in zip(jellies_names, jellies_imgs, axes[0][1:]):
     ax.imshow(img, cmap=cm.gray)
     ax.set_title(label)
     ax.axis('off')
-
 
 for label, (kernel, powers), ax_row in zip(kernel_params, results, axes[1:-1]):
     ## plot Gabor kernels
@@ -285,7 +285,8 @@ dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
 #Shuffle Training Directories and targets
 imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
 #Shuffle Labels
-h2oLabels = list(np.array(trainLabels)[dirsIdx])
+h2oLabelsList = list(np.array(trainLabels)[dirsIdx])
+h2oLabels = [labelsDict[Lab] for Lab in h2oLabelsList]
 
 #Train
 Xdata = generateData(imageDirs, preprocessingFun=getMinorMajorRatio, RGB=False, dims=[30, 30])
@@ -301,6 +302,54 @@ pd.DataFrame(data=testData).to_csv(getcwd() + "/h2oTest.csv", float_format='%.5f
 
 # Unsupervised learning of hidden layers (Pre-training)
 #TODO
+
+#Linear SVM one vs the rest classification model
+#Create an array of all the data available (or what fits in memory)
+#Indices
+dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
+
+#Shuffle Training Directories and targets
+imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
+yLabels = list(np.array(trainLabels)[dirsIdx])
+
+Xdata = generateData(imageDirs, preprocessingFun=getMinorMajorRatio, RGB=False, dims=[25, 25])
+#Create a Prediction Matrix
+testData = generateData(dirImagesTest, preprocessingFun=getMinorMajorRatio, RGB=False, dims=[25, 25])
+
+#Divide data for validation
+XTrain, XTest, yTrain, yTest = cross_validation.train_test_split(
+    Xdata[0:10000, :], yLabels[0:10000], test_size=0.4, random_state=0)
+
+# Validate a linear SVM classification model
+print("Fitting the classifier to the training set")
+t0 = time()
+lin_clf = svm.LinearSVC(verbose=1)
+param_grid = {'C': [1.0, 3.0, 10.0, 30.0, 100]}
+clf = GridSearchCV(lin_clf, param_grid)
+clf = clf.fit(XTrain, yTrain)
+print("done in %0.3fs" % (time() - t0))
+print("Best estimator found by grid search:")
+print(clf.best_estimator_)
+
+#Train classifier on full data
+fullDataLinClf = svm.LinearSVC(C=1.0, verbose=1)
+fullDataLinClf.fit(Xdata, yLabels)
+
+#Linear SVM Prediction
+predictionMatrixSVM = fullDataLinClf.predict(testData)
+
+#Write .csv submission file SVM
+submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
+#Run through
+for i in range(0, len(predictionMatrixSVM)):
+    predictionColumn = labelsDict[predictionMatrixSVM[i]]
+    submissionTemplate.ix[i, submissionTemplate.columns == predictionColumn] = 1
+    submissionTemplate.ix[i, submissionTemplate.columns != predictionColumn] = 0
+
+submissionTemplate.to_csv(getcwd(getcwd() + "/SVM.csv", index=False))
+
+#Theanets NN
+
 
 #Run Neural Networks with optimal hyperparameters
 #mini-batch learning with either L-BFGS or Conjugate gradient
@@ -359,38 +408,6 @@ predictionMatrix = predictionFromNNs(theta, input_layer_size, hidden1_layer_size
 predictionMatrixCG = predictionFromNNs(thetaCG, input_layer_size, hidden1_layer_size,
                                      hidden2_layer_size, num_labels, testData)
 
-#Linear SVM one vs the rest classification model
-#Create an array of all the data available (or what fits in memory)
-#Indices
-dirsIdx = random.sample(range(0, len(dirImagesTrain)), len(dirImagesTrain))
-
-#Shuffle Training Directories and targets
-imageDirs = list(np.array(dirImagesTrain)[dirsIdx])
-yMatrixShuffled = yMatrix[dirsIdx, :]
-
-Xdata = generateData(imageDirs, preprocessingFun=getMinorMajorRatio, RGB=False, dims=[25, 25])
-
-#Divide data for validation
-XTrain, XTest, yTrain, yTest = cross_validation.train_test_split(
-    Xdata[0:10000, :], yMatrixShuffled[0:10000, :], test_size=0.4, random_state=0)
-
-# Validate a linear SVM classification model
-print("Fitting the classifier to the training set")
-t0 = time()
-lin_clf = svm.LinearSVC()
-param_grid = {'C': [1.0, 3.0, 10.0, 30.0, 100]}
-clf = GridSearchCV(lin_clf(verbose=True), param_grid)
-clf = clf.fit(XTrain, yTrain)
-print("done in %0.3fs" % (time() - t0))
-print("Best estimator found by grid search:")
-print(clf.best_estimator_)
-
-#Train classifier on full data
-fullDataLinClf = svm.LinearSVC(C=clf.best_estimator_)
-fullDataLinClf.fit(Xdata, yMatrixShuffled)
-
-#Linear SVM Prediction
-predictionMatrixSVM = fullDataLinClf.predict_proba(testData)
 
 #Write .csv submission file NNs
 #L-BFGS
@@ -402,7 +419,3 @@ submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_c
 submissionTemplate.ix[:, 1:122] = predictionMatrixCG
 submissionTemplate.to_csv(getcwd() + "/CG.csv", float_format='%.5f', index=False)
 
-#Write .csv submission file SVM
-submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
-submissionTemplate[1:121, :] = predictionMatrixSVM
-submissionTemplate.to_csv(getcwd())

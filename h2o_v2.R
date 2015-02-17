@@ -1,8 +1,7 @@
 #Libraries, directories, options and extra functions----------------------
 require("data.table")
-require("h2o")
+#require("h2o")
 #library(caret)
-
 library(h2o)
 # set directory for data 
 setwd('/Users/Gabi/dev/kaggle/NationalDataSciBowl')
@@ -66,8 +65,8 @@ CVModels <- h2o.randomForest(x = ncol(Xtrain.h20) - 1, y = ncol(Xtrain.h20),
                              data = Xtrain.h20,
                              nfolds = 5,
                              classification = TRUE,
-                             ntree = c(50, 75, 100),
-                             depth = c(20, 50, 75), 
+                             ntree = c(50, 75),
+                             depth = c(20, 50), 
                              verbose = TRUE)
 
 bestNTrees <- driverRFModelCV@model[[1]]@model$params$ntree
@@ -137,7 +136,7 @@ CVModels <- h2o.deeplearning(x = 901,  # column numbers for predictors only rati
                              hidden_dropout_ratios = c(0, 0, 0), c(0.5, 0.5, 0.5), # % for nodes dropout
                              balance_classes = TRUE, 
                              hidden = c(50,50,50), # three layers of 50 nodes
-                             epochs = 10) # max. no. of epochs
+                             epochs = 10) # max. no. of epochs in CV for each fold
 
 bestIDR <- driverRFModelCV@model[[1]]@model$params$input_dropout_ratio
 bestHDR <- driverRFModelCV@model[[1]]@model$params$hidden_dropout_ratios
@@ -149,8 +148,8 @@ NNmodel <- h2o.deeplearning(x = 901,  # column numbers for predictors only ratio
                             y = 902,   # column number for label
                             data = Xtrain.h20, # data in H2O format
                             activation = "TanhWithDropout", # or 'Tanh'
-                            input_dropout_ratio = 0.2, # % of inputs dropout
-                            hidden_dropout_ratios = c(0.5,0.5,0.5), # % for nodes dropout
+                            input_dropout_ratio = bestIDR, # % of inputs dropout
+                            hidden_dropout_ratios = bestHDR, # % for nodes dropout
                             balance_classes = TRUE, 
                             hidden = c(50,50,50), # three layers of 50 nodes
                             epochs = 100) # max. no. of epochs
