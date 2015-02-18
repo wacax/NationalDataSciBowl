@@ -1,6 +1,6 @@
 #National Data Science Bowl
 
-#Ver 0.1
+#Ver 0.2
 #Libraries
 from os import getcwd, chdir, listdir
 import pandas as pd
@@ -183,7 +183,7 @@ for theta in (0, 1):
         results.append((kernel, [power(img, kernel) for img in jellies_imgs]))
 
 
-fig, axes = plt.subplots(nrows = 6, ncols = 4, figsize = (9, 6))
+fig, axes = plt.subplots(nrows=6, ncols=4, figsize=(9, 6))
 
 fig.suptitle('Image responses for Gabor filter kernels - Jellies', fontsize = 15)
 axes[0][0].axis('off')
@@ -343,6 +343,35 @@ submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_c
 #Run through
 for i in range(0, len(predictionMatrixSVM)):
     predictionColumn = labelsDict[predictionMatrixSVM[i]]
+    submissionTemplate.ix[i, submissionTemplate.columns == predictionColumn] = 1
+    submissionTemplate.ix[i, submissionTemplate.columns != predictionColumn] = 0
+
+submissionTemplate.to_csv(getcwd(getcwd() + "/SVM.csv", index=False))
+
+
+# Validate a kernel SVM classification model
+print("Fitting the classifier to the training set")
+t0 = time()
+kernel_clf = svm.SVC(verbose=True)
+param_grid = {'C': [1.0, 3.0, 10.0, 30.0, 100]}
+kerclf = GridSearchCV(kernel_clf, param_grid)
+kerclf = clf.fit(XTrain, yTrain)
+print("done in %0.3fs" % (time() - t0))
+print("Best estimator found by grid search:")
+print(kerclf.best_estimator_)
+
+#Train classifier on full data
+fullDataKerClf = svm.LinearSVC(C=1.0, verbose=True)
+fullDataKerClf.fit(Xdata, yLabels)
+
+#Linear SVM Prediction
+predictionMatrixSVMSVC = fullDataKerClf.predict(testData)
+
+#Write .csv submission file SVM
+submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
+#Run through
+for i in range(0, len(predictionMatrixSVMSVC)):
+    predictionColumn = labelsDict[predictionMatrixSVMSVC.columns[i]]
     submissionTemplate.ix[i, submissionTemplate.columns == predictionColumn] = 1
     submissionTemplate.ix[i, submissionTemplate.columns != predictionColumn] = 0
 
