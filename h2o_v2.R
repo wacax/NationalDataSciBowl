@@ -4,8 +4,11 @@ require("data.table")
 #library(caret)
 library(h2o)
 # set directory for data 
-setwd('/Users/Gabi/dev/kaggle/NationalDataSciBowl')
-dataDirectory = "/Users/Gabi/dev/kaggle/NationalDataSciBowl/Data/"
+#setwd('/Users/Gabi/dev/kaggle/NationalDataSciBowl')
+#dataDirectory = "/Users/Gabi/dev/kaggle/NationalDataSciBowl/Data/"
+workingDirectory <- '/home/wacax/Wacax/Kaggle/National Data Science Bowl'
+dataDirectory <- "/home/wacax/Wacax/Kaggle/National Data Science Bowl/Data/"
+setwd(workingDirectory)
 
 labels = dir(paste(dataDirectory, 'train', sep =''))
 imagesTest = dir(paste(dataDirectory, 'test', sep =''))
@@ -55,23 +58,22 @@ localH2O <- h2o.init(ip = "127.0.0.1", port = 54321, startH2O = TRUE, nthreads =
 #Xtrain <- fread("/Users/Gabi/dev/kaggle/NationalDataSciBowl/h2oTrain.csv") #elapsed time 0.274
 
 # convert training data to H2o object
-Xtrain.h20 <- h2o.importFile(localH2O, file.path(dataDirectory, "h2oTrain.csv"), 
+Xtrain.h20 <- h2o.importFile(localH2O, file.path(workingDirectory, "h2oTrain.csv"), 
                              header = TRUE, key = "Xtrain") #total time 1.530
 #Xtrain.h20 <- as.h2o(localH2O, Xtrain, key = 'Xtrain') #total time 5.541
 
 #Test 5-Fold Cross Validation + Performance Evaluation (Fast-RF algo, the one from the tutorial)
 CVModels <- h2o.randomForest(x = ncol(Xtrain.h20) - 1, y = ncol(Xtrain.h20),
                              #x = seq(1, ncol(Xtrain.h20) - 1), y = ncol(Xtrain.h20), full data
-                             data = Xtrain.h20,
+                             data = Xtrain.h20[1:10000, ],
                              nfolds = 5,
                              classification = TRUE,
                              ntree = c(50, 75),
                              depth = c(20, 50), 
                              verbose = TRUE)
 
-bestNTrees <- driverRFModelCV@model[[1]]@model$params$ntree
-bestDepth <- driverRFModelCV@model[[1]]@model$params$depth
-h2o.rm(object = localH2O, keys = h2o.ls(localH2O)[, 1])   
+bestNTrees <- CVModels@model[[1]]@model$params$ntree
+bestDepth <- CVModels@model[[1]]@model$params$depth
 
 RFModel <- h2o.randomForest(x = ncol(Xtrain.h20) - 1, y = ncol(Xtrain.h20),
                             #x = seq(1, ncol(Xtrain.h20) - 1), y = ncol(Xtrain.h20), full data
@@ -81,6 +83,8 @@ RFModel <- h2o.randomForest(x = ncol(Xtrain.h20) - 1, y = ncol(Xtrain.h20),
                             ntree = bestNTrees,
                             depth = bestDepth, 
                             verbose = TRUE)
+
+h2o.rm(object = localH2O, keys = h2o.ls(localH2O)[, 1])
 
 # This needs work - file takes too long to read!!
 # read test data - should rename this variable
