@@ -84,8 +84,6 @@ RFModel <- h2o.randomForest(x = ncol(Xtrain.h20) - 1, y = ncol(Xtrain.h20),
                             depth = bestDepth, 
                             verbose = TRUE)
 
-h2o.rm(object = localH2O, keys = h2o.ls(localH2O)[, 1])
-
 # This needs work - file takes too long to read!!
 # read test data - should rename this variable
 #Use this only when scaling or other type of manipulation is needed
@@ -93,23 +91,33 @@ h2o.rm(object = localH2O, keys = h2o.ls(localH2O)[, 1])
 #Ytest <- fread("/Users/Gabi/dev/kaggle/NationalDataSciBowl/h2oTest.csv") 
 
 # convert test data to h2o object
-test.h20 <- h2o.importFile(localH2O, file.path(dataDirectory, "h2oTest.csv"),
+test.h20 <- h2o.importFile(localH2O, file.path(workingDirectory, "h2oTest.csv"),
                            header = TRUE, key = 'test') #total time ~53 sec
 #test.h20 <- as.h2o(localH2O, Ytest, key = 'test')
 
 #probability Prediction for each class
-predictionRF <- signif(as.data.frame(h2o.predict(RFModel, newdata = test.h20)), digits = 4)
+predictionRF <- as.data.frame(h2o.predict(RFModel, newdata = test.h20[, 901]))
+h2o.rm(object = localH2O, keys = h2o.ls(localH2O)[, 1])
 h2o.shutdown(localH2O, prompt = FALSE)
 
 #Write a submission File
 submissionTemplate <- read.csv(file.path(dataDirectory, "sampleSubmission.csv"), header = TRUE,
                                stringsAsFactors = FALSE)
 
-submissionTemplate[, seq(2, 122)] <- signif(predictionRF[, seq(2, 122)], digits = 8)
+for (i in 2:length(colnames(predictionRF))){
+  idx <- which(names(submissionTemplate) == colnames(predictionRF)[i])
+  submissionTemplate[, idx] <- predictionRF[, i]  
+}
+sapply(names(predictionRF)[2:122], function(colName){
+  idx <- which(names(submissionTemplate) == colName)
+  submissionTemplate[, idx] <- predictionRF[, colName]
+  return(TRUE)
+})
+
 write.csv(submissionTemplate, file = "RFPredictionTest.csv", row.names = FALSE)
 system('zip RFPredictionTest.zip RFPredictionTest.csv')
 
-#Deep Learning Modelling---------------------------
+#Deep Learning Modeling---------------------------
 #initial connection
 #Start h2o from command line
 #system(paste0("java -Xmx5G -jar ", h2o.jarLoc, " -port 54321 -name DataSciBowl &")) #more output, straight from java
@@ -177,9 +185,13 @@ h2o.shutdown(localH2O, prompt = FALSE)
 submissionTemplate <- read.csv(file.path(dataDirectory, "sampleSubmission.csv"), header = TRUE,
                                stringsAsFactors = FALSE)
 
-submissionTemplate[, seq(2, 122)] <- signif(predictionNN[, seq(2, 122)], digits = 8)
-write.csv(submissionTemplate, file = "NNPredictionTest.csv", row.names = FALSE)
-system('zip NNPredictionTest.zip NNPredictionTest.csv')
+for (i in 2:length(names(predictionRF))){
+  idx <- which(names(predictionRF)[i] == names(submissionTemplate))
+  submissionTemplate[, idx] <- predictionRF[, i]  
+}
+
+write.csv(submissionTemplate, file = "RFPredictionTestII.csv", row.names = FALSE)
+system('zip RFPredictionTestII.zip RFPredictionTestII.csv')
 
 ## Evaluate performance - should look something like this - this doesnt work need to FIX!!
 # yhat_train <- h2o.predict(model, dat_h2o[row_train, ])$predict
