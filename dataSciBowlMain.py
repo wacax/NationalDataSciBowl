@@ -346,8 +346,7 @@ for i in range(0, len(predictionMatrixSVM)):
     submissionTemplate.ix[i, submissionTemplate.columns == predictionColumn] = 1
     submissionTemplate.ix[i, submissionTemplate.columns != predictionColumn] = 0
 
-submissionTemplate.to_csv(getcwd(getcwd() + "/SVM.csv", index=False))
-
+submissionTemplate.to_csv(getcwd() + "/SVM.csv", index=False)
 
 # Validate a kernel SVM classification model
 print("Fitting the classifier to the training set")
@@ -355,13 +354,13 @@ t0 = time()
 kernel_clf = svm.SVC(verbose=True)
 param_grid = {'C': [1.0, 3.0, 10.0, 30.0, 100]}
 kerclf = GridSearchCV(kernel_clf, param_grid)
-kerclf = clf.fit(XTrain, yTrain)
+kerclf = kernel_clf.fit(XTrain, yTrain)
 print("done in %0.3fs" % (time() - t0))
 print("Best estimator found by grid search:")
 print(kerclf.best_estimator_)
 
 #Train classifier on full data
-fullDataKerClf = svm.LinearSVC(C=1.0, verbose=True)
+fullDataKerClf = svm.SVC(C=1.0, verbose=True)
 fullDataKerClf.fit(Xdata, yLabels)
 
 #Linear SVM Prediction
@@ -371,11 +370,11 @@ predictionMatrixSVMSVC = fullDataKerClf.predict(testData)
 submissionTemplate = pd.read_csv(dataDirectory + "sampleSubmission.csv", index_col=False)
 #Run through
 for i in range(0, len(predictionMatrixSVMSVC)):
-    predictionColumn = labelsDict[predictionMatrixSVMSVC.columns[i]]
+    predictionColumn = labelsDict[predictionMatrixSVMSVC[i]]
     submissionTemplate.ix[i, submissionTemplate.columns == predictionColumn] = 1
     submissionTemplate.ix[i, submissionTemplate.columns != predictionColumn] = 0
 
-submissionTemplate.to_csv(getcwd(getcwd() + "/SVM.csv", index=False))
+submissionTemplate.to_csv(getcwd() + "/SVMSVC.csv", index=False)
 
 #Theanets NN
 
