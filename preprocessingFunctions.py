@@ -73,9 +73,9 @@ def getMinorMajorRatio(dataDir, dim1=50, dim2=50, onlyImage=False):
         # guard against cases where the segmentation fails by providing zeros
         ratio = 0.0
         if ((not maxregion is None) and  (maxregion.major_axis_length != 0.0)):
-            ratio = 0.0 if maxregion is None else maxregion.minor_axis_length*1.0 / maxregion.major_axis_length
+            ratio = 0.0 if maxregion is None else maxregion.minor_axis_length * 1.0 / maxregion.major_axis_length
         #Function returns rescaled image and ratio
-        image = cv2.resize(image, (dim1, dim2))
+        image = cv2.resize(imagethr, (dim1, dim2))
         image = image.flatten()
         return np.hstack((image, ratio))
 
